@@ -12,7 +12,7 @@ repositories {
 
 dependencies {
 	testImplementation(kotlin("test"))
-	implementation("org.bread_experts_group:experimental_application_modifier:D0F1P0")
+	implementation("org.bread_experts_group:experimental_application_modifier:D0F2P5")
 }
 
 kotlin {

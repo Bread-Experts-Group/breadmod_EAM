@@ -1,8 +1,6 @@
 package org.bread_experts_group.breadmod
 
 import org.bread_experts_group.breadmod.BMContentClient.TEST_RENDERER
-import org.bread_experts_group.breadmod.camera.CameraTexture
-import org.bread_experts_group.eam.classDesc
 import org.bread_experts_group.eam.minecraft.feature.Identifier
 import org.bread_experts_group.eam.minecraft.feature.MinecraftMod
 import org.bread_experts_group.eam.minecraft.feature.block.MinecraftBlock
@@ -16,21 +14,15 @@ import org.bread_experts_group.eam.minecraft.feature.item.MinecraftItemFeature
 import org.bread_experts_group.eam.minecraft.feature.item.MinecraftItemProperties
 import org.bread_experts_group.eam.minecraft.feature.layer.MinecraftLayer
 import org.bread_experts_group.eam.minecraft.feature.layer.MinecraftLayerFeature
-import org.bread_experts_group.eam.minecraft.mimic.MimickedClass
 import org.bread_experts_group.eam.minecraft.transform.CodeTransformer
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.NativeConstantsV1x21x1
-import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.NativeConstantsV1x21x1.net_minecraft_client_Minecraft
-import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.NativeConstantsV1x21x1.net_minecraft_client_renderer_LevelRenderer
-import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.com.mojang.blaze3d.pipeline.RenderTarget
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.com.mojang.blaze3d.vertex.DefaultVertexFormat
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.com.mojang.blaze3d.vertex.PoseStack
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.client.Camera
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.client.DeltaTracker
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.client.Minecraft
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.client.gui.GuiGraphics
-import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.client.renderer.GameRenderer
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.client.renderer.LevelRenderer
-import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.client.renderer.LightTexture
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.client.renderer.MultiBufferSource
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.client.renderer.ShaderInstance
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider
@@ -44,7 +36,6 @@ import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.server.packs.resources.ResourceProvider
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.InteractionResult
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.entity.Entity
-import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.entity.LivingEntity
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.item.ItemDisplayContext
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.item.ItemStack
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.item.context.UseOnContext
@@ -53,7 +44,6 @@ import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.level.block.entity.BlockEntityType.BlockEntitySupplier
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.level.block.entity.BlockEntityType.Builder
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.level.block.state.BlockState
-import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.org.joml.Matrix4f
 import java.awt.Color
 import java.lang.classfile.ClassBuilder
 import java.lang.classfile.ClassElement
@@ -64,12 +54,18 @@ import java.lang.constant.ConstantDescs
 import java.lang.constant.MethodTypeDesc
 
 // todo cleanup really dirty breadmod test code transferring from the EAM repo to prepare for loading mods from their own jar files
-class BreadMod : MinecraftMod("breadmod"), CodeTransformer {
+class BreadMod : MinecraftMod(), CodeTransformer {
 	override val existingElements: MutableList<String> = mutableListOf()
+
+	init {
+		println("BreadMod Test Loading ...")
+		println("*** Conflict resolution ID: ${BreadMod::class.java.modID}")
+		println("*** ClassLoader: ${BreadMod::class.java.classLoader}")
+	}
 
 	override fun addBlocks(blocks: MinecraftBlockFeature) {
 		blocks.add(
-			Identifier("breadmod", "bread_block"),
+			Identifier(BreadMod::class.java.modID, "bread_block"),
 			object : MinecraftBlock(), MinecraftEntityBlock {
 				// todo make abstract in the future
 				override fun newBlockEntity(pos: BlockPos, state: BlockState): BlockEntity =
@@ -79,10 +75,16 @@ class BreadMod : MinecraftMod("breadmod"), CodeTransformer {
 	}
 
 	override fun addItems(items: MinecraftItemFeature) {
-		items.add(Identifier("breadmod", "bread_2"), MinecraftItem(MinecraftItemProperties()))
 		items.add(
 			Identifier(
-				"breadmod",
+				BreadMod::class.java.modID,
+				"bread_2"
+			),
+			MinecraftItem(MinecraftItemProperties())
+		)
+		items.add(
+			Identifier(
+				BreadMod::class.java.modID,
 				"bread_3"
 			), object : MinecraftItem(MinecraftItemProperties()) {
 				override fun useOn(context: UseOnContext): InteractionResult {
@@ -100,11 +102,22 @@ class BreadMod : MinecraftMod("breadmod"), CodeTransformer {
 				}
 		})
 		// todo mouse and keyboard hooks
-		items.add(Identifier("breadmod", "tool_gun"), MinecraftItem(MinecraftItemProperties()))
+		items.add(
+			Identifier(
+				BreadMod::class.java.modID,
+				"tool_gun"
+			),
+			MinecraftItem(MinecraftItemProperties())
+		)
 	}
 
 	override fun addLayers(layers: MinecraftLayerFeature) {
-		layers.add(Identifier("breadmod", "test_layer"), object : MinecraftLayer() {
+		layers.add(
+			Identifier(
+				BreadMod::class.java.modID,
+				"test_layer"
+			),
+			object : MinecraftLayer() {
 			override fun render(guiGraphics: GuiGraphics, deltaTracker: DeltaTracker) {
 				guiGraphics.drawString(Minecraft.getInstance().font, "I LOVE REGISTERED OVERLAYS", 0, 20, Color.WHITE.rgb)
 			}
@@ -112,7 +125,13 @@ class BreadMod : MinecraftMod("breadmod"), CodeTransformer {
 	}
 
 	override fun addCreativeTabs(tabs: MinecraftCreativeTabFeature) {
-		tabs.add(Identifier("breadmod", "breadmod"), MinecraftCreativeTab())
+		tabs.add(
+			Identifier(
+				BreadMod::class.java.modID,
+				BreadMod::class.java.modID
+			),
+			MinecraftCreativeTab()
+		)
 	}
 
 	override fun registerEvents() {
