@@ -2,6 +2,8 @@ package org.bread_experts_group.breadmod
 
 import org.bread_experts_group.breadmod.BMContentClient.TEST_RENDERER
 import org.bread_experts_group.breadmod.camera.CameraTexture
+import org.bread_experts_group.breadmod.transforms.LevelRendererTransform
+import org.bread_experts_group.breadmod.transforms.MinecraftTransform
 import org.bread_experts_group.eam.classDesc
 import org.bread_experts_group.eam.minecraft.feature.Identifier
 import org.bread_experts_group.eam.minecraft.feature.MinecraftMod
@@ -18,6 +20,7 @@ import org.bread_experts_group.eam.minecraft.feature.layer.MinecraftLayer
 import org.bread_experts_group.eam.minecraft.feature.layer.MinecraftLayerFeature
 import org.bread_experts_group.eam.minecraft.mimic.MimickedClass
 import org.bread_experts_group.eam.minecraft.transform.CodeTransformer
+import org.bread_experts_group.eam.minecraft.transform.ModTransformHolder
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.NativeConstantsV1x21x1
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.NativeConstantsV1x21x1.net_minecraft_client_Minecraft
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.NativeConstantsV1x21x1.net_minecraft_client_renderer_LevelRenderer
@@ -53,20 +56,9 @@ import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.level.block.entity.BlockEntityType.BlockEntitySupplier
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.level.block.entity.BlockEntityType.Builder
 import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.net.minecraft.world.level.block.state.BlockState
-import org.bread_experts_group.eam.minecraft.version_impl.v1x21x1.org.joml.Matrix4f
-import java.awt.Color
-import java.lang.classfile.ClassBuilder
-import java.lang.classfile.ClassElement
-import java.lang.classfile.ClassFile.ACC_PRIVATE
-import java.lang.classfile.Opcode
-import java.lang.constant.ClassDesc
-import java.lang.constant.ConstantDescs
-import java.lang.constant.MethodTypeDesc
 
 // todo cleanup really dirty breadmod test code transferring from the EAM repo to prepare for loading mods from their own jar files
-class BreadMod : MinecraftMod(), CodeTransformer {
-	override val existingElements: MutableList<String> = mutableListOf()
-
+class BreadMod : MinecraftMod() {
 	init {
 		println("BreadMod Test Loading ...")
 		println("*** Conflict resolution ID: ${BreadMod::class.java.modID}")
@@ -129,7 +121,10 @@ class BreadMod : MinecraftMod(), CodeTransformer {
 			),
 			object : MinecraftLayer() {
 			override fun render(guiGraphics: GuiGraphics, deltaTracker: DeltaTracker) {
-				guiGraphics.drawString(Minecraft.getInstance().font, "I LOVE REGISTERED OVERLAYS", 0, 20, Color.WHITE.rgb)
+				val player = Minecraft.getInstance().player ?: return
+				val font = Minecraft.getInstance().font
+				guiGraphics.drawString(font, "The Breadmod", 0, 0, Color.ORANGE)
+				guiGraphics.drawString(font, "${player.getX()}, ${player.getY()}, ${player.getZ()}", 0, 10, Color.WHITE)
 			}
 		})
 	}
@@ -214,158 +209,12 @@ class BreadMod : MinecraftMod(), CodeTransformer {
 		)
 	}
 
-	override fun transformClasses(transforms: MutableMap<String, (ClassBuilder, ClassElement) -> Unit>) {
-		val cameraNative = NativeConstantsV1x21x1.nativeClassDesc(Camera::class)
-		val levelRendererNative = NativeConstantsV1x21x1.nativeClassDesc(LevelRenderer::class)
-		// todo NoClassDefFound, probably the same issue with createNative of ClassLoader not being within BreadMod's CL context(?)
-		val cameraClassDesc = CameraTexture::class.classDesc
-		transforms[net_minecraft_client_Minecraft] = { classBuilder, classElement ->
-			val mainTargetMethod = classBuilder.transformMethodCode(
-				classElement,
-				"h",
-				MethodTypeDesc.of(RenderTarget.classDesc)
-			) { codeBuilder, codeElement, index ->
-				if (index == 1) {
-					codeBuilder
-						.getstatic(
-							cameraClassDesc,
-							"targetBeingRendered",
-							RenderTarget.mimicClassDesc
-						)
-						.ifThen(Opcode.IFNONNULL) { builder ->
-							builder
-								.getstatic(
-									cameraClassDesc,
-									"targetBeingRendered",
-									RenderTarget.mimicClassDesc
-								)
-								.getfield(
-									MimickedClass.classDesc,
-									"around",
-									ConstantDescs.CD_Object
-								)
-								.checkcast(RenderTarget.classDesc)
-								.areturn()
-						}
-				}
-				codeBuilder.with(codeElement)
-			}
-
-			if (!mainTargetMethod) classBuilder.with(classElement)
-		}
-		transforms[net_minecraft_client_renderer_LevelRenderer] = { classBuilder, classElement ->
-			val renderLevelTransform = classBuilder.transformMethodCode(
-				classElement,
-				"a",
-				MethodTypeDesc.of(
-					ConstantDescs.CD_void,
-					DeltaTracker.classDesc,
-					ConstantDescs.CD_boolean,
-					cameraNative,
-					GameRenderer.classDesc,
-					LightTexture.classDesc,
-					Matrix4f.classDesc,
-					Matrix4f.classDesc
-				)
-			) { codeBuilder, codeElement, index ->
-				codeBuilder.with(codeElement)
-				when (index) {
-					527 -> codeBuilder.aload(0) // Before INVOKEVIRTUAL ffy.i ()Z // Bytecode Line 4694
-					529 -> codeBuilder // After INVOKEVIRTUAL ffy.i ()Z // Bytecode Line 4694
-						.invokevirtual(
-							levelRendererNative,
-							"cameraIsDetachedOverride",
-							MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean)
-						)
-					546 -> codeBuilder.aload(0) // Before ALOAD 3 // Bytecode Line 4713
-					549 -> codeBuilder  // After ALOAD 27 // Bytecode Line 4715
-						.invokevirtual(
-							levelRendererNative,
-							"getCameraEntityOrOriginal",
-							MethodTypeDesc.of(Entity.classDesc, Entity.classDesc, Entity.classDesc)
-						)
-						.aload(27)
-				}
-			}
-			val shouldShowEntityOutlines = classBuilder.transformMethodCode(
-				classElement,
-				"d",
-				MethodTypeDesc.of(ConstantDescs.CD_boolean)
-			) { codeBuilder, codeElement, index ->
-				when (index) {
-					0 -> codeBuilder.localVariable(
-						1,
-						"original",
-						ConstantDescs.CD_boolean,
-						codeBuilder.startLabel(),
-						codeBuilder.endLabel()
-					)
-					23 -> codeBuilder // Replaces IRETURN // Bytecode Line 2552
-						.istore(1)
-						.getstatic(
-							cameraClassDesc,
-							"targetBeingRendered",
-							RenderTarget.mimicClassDesc
-						)
-						.ifThen(Opcode.IFNONNULL) { builder ->
-							builder
-								.iconst_0()
-								.ireturn()
-						}
-						.iload(1)
-						.ireturn()
-					else -> codeBuilder.with(codeElement)
-				}
-			}
-
-			classBuilder.addMethod(
-				"getCameraEntityOrOriginal",
-				MethodTypeDesc.of(Entity.classDesc, Entity.classDesc, Entity.classDesc),
-				ACC_PRIVATE
-			) { methodBuilder ->
-				methodBuilder.withCode { codeBuilder ->
-					codeBuilder
-						.getstatic(
-							cameraClassDesc,
-							"targetBeingRendered",
-							RenderTarget.mimicClassDesc
-						)
-						.ifThen(Opcode.IFNONNULL) { builder ->
-							builder
-								.aload(2)
-								.instanceOf(LivingEntity.classDesc)
-								.ifThen { b ->
-									b.aload(2).areturn()
-								}
-						}
-						.aload(1)
-						.areturn()
-				}
-			}
-
-			classBuilder.addMethod(
-				"cameraIsDetachedOverride",
-				MethodTypeDesc.of(ConstantDescs.CD_boolean, ConstantDescs.CD_boolean),
-				ACC_PRIVATE
-			) { methodBuilder ->
-				methodBuilder.withCode { codeBuilder ->
-					codeBuilder
-						.getstatic(
-							cameraClassDesc,
-							"targetBeingRendered",
-							RenderTarget.mimicClassDesc
-						)
-						.ifThen(Opcode.IFNONNULL) { builder ->
-							builder
-								.iconst_1()
-								.ireturn()
-						}
-						.iload(1)
-						.ireturn()
-				}
-			}
-
-			if (!(shouldShowEntityOutlines || renderLevelTransform)) classBuilder.with(classElement)
-		}
+	override fun gatherClassTransforms(holder: ModTransformHolder) {
+		holder.submit(this, NativeConstantsV1x21x1.net_minecraft_client_Minecraft, MinecraftTransform())
+		holder.submit(
+			this,
+			NativeConstantsV1x21x1.net_minecraft_client_renderer_LevelRenderer,
+			LevelRendererTransform()
+		)
 	}
 }

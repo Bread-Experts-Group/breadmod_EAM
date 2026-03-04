@@ -69,7 +69,7 @@ class CameraTexture(
 		if (camera.entity == null)
 			camera.entity = Display.BlockDisplay(EntityType.BLOCK_DISPLAY, level)
 
-		textureId = frameBuffer.getColorTextureId()
+//		textureId = frameBuffer.getColorTextureId()
 		RenderSystem.executeOnRenderThread {
 			minecraft.getTextureManager().register(location, this)
 //			this.updateTexture()
@@ -86,7 +86,7 @@ class CameraTexture(
 
 	override fun releaseId() {
 		RenderSystem.executeOnRenderThread {
-			this.textureId = -1
+//			this.textureId = -1
 			this.frameBuffer.destroyBuffers()
 		}
 	}
